@@ -118,9 +118,9 @@ restaurantSchema.methods.recalculateRatings = function () {
 };
 
 restaurantSchema.statics.search = function (query, options = {}) {
-  const { cuisine, city, priceRange, minRating, sortBy = 'newest', page = 1, limit = 12 } = options;
+  const { cuisine, city, priceRange, minRating, sortBy = 'newest', page = 1, limit = 12, showAll = false } = options;
 
-  const filter = { isApproved: true };
+  const filter = showAll ? {} : { isApproved: true };
 
   if (query) filter.$text = { $search: query };
   if (cuisine?.length) filter.cuisine = { $in: cuisine };

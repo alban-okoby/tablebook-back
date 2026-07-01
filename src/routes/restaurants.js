@@ -44,6 +44,7 @@ router.get(
       } = req.query;
 
       const cuisineList = cuisine ? cuisine.split(',').map((c) => c.trim()) : undefined;
+      const isAdmin = req.user?.role === 'admin';
 
       const [restaurants, total] = await Promise.all([
         Restaurant.search(q, {
@@ -54,8 +55,9 @@ router.get(
           sortBy,
           page: parseInt(page),
           limit: parseInt(limit),
+          showAll: isAdmin,
         }),
-        Restaurant.countDocuments({ isApproved: true }),
+        Restaurant.countDocuments(isAdmin ? {} : { isApproved: true }),
       ]);
 
       res.json({
@@ -161,6 +163,8 @@ router.put(
         'name', 'description', 'cuisine', 'address', 'phone', 'email',
         'website', 'images', 'coverImage', 'priceRange', 'tables', 'openingHours',
       ];
+      if (req.user.role === 'admin') allowed.push('isApproved', 'isFeatured');
+
       const updates = {};
       allowed.forEach((f) => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
 
