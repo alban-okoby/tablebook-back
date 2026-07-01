@@ -52,9 +52,9 @@ app.use('/api/', limiter);
 
 // Stricter limit for auth routes
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: 5 * 60 * 1000,
   max: 10,
-  message: { error: 'Too many authentication attempts. Please wait 15 minutes.' },
+  message: { error: 'Too many authentication attempts. Please wait 5 minutes.' },
 });
 
 // ─── Body Parsing ────────────────────────────────────────────────────────────

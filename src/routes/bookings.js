@@ -225,6 +225,15 @@ router.get(
     try {
       if (!validate(req, res)) return;
 
+      // Restaurant owners can only view bookings for their own restaurants
+      if (req.user.role === 'restaurant_owner') {
+        const restaurant = await Restaurant.findById(req.params.restaurantId, 'addedBy');
+        if (!restaurant) return res.status(404).json({ error: 'Restaurant not found' });
+        if (restaurant.addedBy.toString() !== req.user._id.toString()) {
+          return res.status(403).json({ error: 'Access denied: not your restaurant' });
+        }
+      }
+
       const { date, status, page = 1, limit = 20 } = req.query;
       const filter = { restaurant: req.params.restaurantId };
 

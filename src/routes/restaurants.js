@@ -89,6 +89,19 @@ router.get('/featured', async (req, res, next) => {
   }
 });
 
+// ─── GET /api/restaurants/mine ───────────────────────────────────────────────
+// Owner's own restaurants (including hidden), for the owner panel
+router.get('/mine', protect, restrictTo('restaurant_owner', 'admin'), async (req, res, next) => {
+  try {
+    const restaurants = await Restaurant.find({ addedBy: req.user._id })
+      .sort({ createdAt: -1 })
+      .select('-reviews');
+    res.json({ restaurants });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ─── GET /api/restaurants/:id ─────────────────────────────────────────────────
 router.get('/:id', optionalAuth, param('id').isMongoId(), async (req, res, next) => {
   try {
@@ -164,6 +177,7 @@ router.put(
         'website', 'images', 'coverImage', 'priceRange', 'tables', 'openingHours',
       ];
       if (req.user.role === 'admin') allowed.push('isApproved', 'isFeatured');
+      else if (isOwner) allowed.push('isApproved'); // owner can show/hide their own restaurant
 
       const updates = {};
       allowed.forEach((f) => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
