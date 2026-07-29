@@ -71,6 +71,9 @@ if (process.env.NODE_ENV === 'development') {
 // ─── Static Files ────────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
 
+// ─── API Docs (Swagger UI assets, self-hosted for CSP compliance) ───────────
+app.use('/swagger-ui', express.static(require('swagger-ui-dist').getAbsoluteFSPath()));
+
 // ─── API Routes ──────────────────────────────────────────────────────────────
 app.use('/api/auth', authLimiter, require('./routes/auth'));
 app.use('/api/restaurants', require('./routes/restaurants'));

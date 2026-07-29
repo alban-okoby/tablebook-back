@@ -40,7 +40,6 @@ const RESTAURANTS = [
     coverImage: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80',
     openingHours: hours('17:00', '23:00', ['monday']),
     tables: tables(['Bar', 2, 4], ['Standard', 4, 8], ['Private', 6, 2]),
-    ratings: { average: 4.8, count: 312 },
     isFeatured: true,
     isApproved: true,
   },
@@ -56,7 +55,6 @@ const RESTAURANTS = [
     coverImage: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=800&q=80',
     openingHours: hours('18:00', '23:30', ['tuesday']),
     tables: tables(['Counter', 1, 8], ['Table', 2, 6], ['Tatami', 6, 2]),
-    ratings: { average: 4.9, count: 198 },
     isFeatured: true,
     isApproved: true,
   },
@@ -72,7 +70,6 @@ const RESTAURANTS = [
     coverImage: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&q=80',
     openingHours: hours('11:30', '22:30', ['sunday']),
     tables: tables(['Two-top', 2, 10], ['Four-top', 4, 8], ['Large', 8, 2]),
-    ratings: { average: 4.6, count: 541 },
     isFeatured: true,
     isApproved: true,
   },
@@ -88,7 +85,6 @@ const RESTAURANTS = [
     coverImage: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=800&q=80',
     openingHours: hours('12:00', '22:00'),
     tables: tables(['Standard', 4, 12], ['Booth', 6, 4]),
-    ratings: { average: 4.7, count: 287 },
     isFeatured: true,
     isApproved: true,
   },
@@ -104,7 +100,6 @@ const RESTAURANTS = [
     coverImage: 'https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?w=800&q=80',
     openingHours: hours('11:00', '22:00', ['monday']),
     tables: tables(['Harbour view', 2, 6], ['Main room', 4, 10], ['Group', 10, 2]),
-    ratings: { average: 4.5, count: 423 },
     isFeatured: true,
     isApproved: true,
   },
@@ -120,7 +115,6 @@ const RESTAURANTS = [
     coverImage: 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=800&q=80',
     openingHours: hours('11:00', '21:30', ['tuesday']),
     tables: tables(['Counter', 1, 6], ['Patio', 4, 8], ['Indoor', 4, 6]),
-    ratings: { average: 4.6, count: 356 },
     isFeatured: true,
     isApproved: true,
   },
@@ -136,7 +130,6 @@ const RESTAURANTS = [
     coverImage: 'https://images.unsplash.com/photo-1590301157890-4810ed352733?w=800&q=80',
     openingHours: hours('12:00', '23:00'),
     tables: tables(['BBQ table', 4, 14], ['Group BBQ', 8, 4]),
-    ratings: { average: 4.7, count: 609 },
     isFeatured: true,
     isApproved: true,
   },
@@ -152,7 +145,6 @@ const RESTAURANTS = [
     coverImage: 'https://images.unsplash.com/photo-1544148103-0773bf10d330?w=800&q=80',
     openingHours: hours('11:30', '23:00', ['monday']),
     tables: tables(['Two-top', 2, 8], ['Four-top', 4, 10], ['Communal', 12, 1]),
-    ratings: { average: 4.4, count: 478 },
     isFeatured: true,
     isApproved: true,
   },
@@ -168,7 +160,6 @@ const RESTAURANTS = [
     coverImage: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=800&q=80',
     openingHours: hours('17:00', '23:00', ['sunday', 'monday']),
     tables: tables(['Two-top', 2, 6], ['Four-top', 4, 10], ['Private dining', 10, 2]),
-    ratings: { average: 4.8, count: 264 },
     isFeatured: true,
     isApproved: true,
   },
@@ -184,7 +175,6 @@ const RESTAURANTS = [
     coverImage: 'https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=800&q=80',
     openingHours: hours('09:00', '21:00'),
     tables: tables(['Two-top', 2, 8], ['Four-top', 4, 6]),
-    ratings: { average: 4.5, count: 812 },
     isFeatured: true,
     isApproved: true,
   },
@@ -200,7 +190,6 @@ const RESTAURANTS = [
     coverImage: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
     openingHours: hours('17:30', '22:30', ['tuesday']),
     tables: tables(['Two-top', 2, 6], ['Cushion floor', 6, 3], ['Standard', 4, 6]),
-    ratings: { average: 4.6, count: 193 },
     isFeatured: true,
     isApproved: true,
   },
@@ -216,7 +205,6 @@ const RESTAURANTS = [
     coverImage: 'https://images.unsplash.com/photo-1552566626-52f8b828add9?w=800&q=80',
     openingHours: hours('18:00', '23:30', ['monday', 'tuesday']),
     tables: tables(['Window', 2, 8], ['Main floor', 4, 10], ['Chef table', 6, 1]),
-    ratings: { average: 4.9, count: 142 },
     isFeatured: true,
     isApproved: true,
   },
@@ -232,9 +220,9 @@ async function run() {
     process.exit(0);
   }
 
-  const admin = await User.findOne({ role: 'admin' });
-  if (!admin) {
-    console.error('No admin user found. Run `node src/config/create-admin.js` first.');
+  const owner = (await User.findOne({ role: 'restaurant_owner' })) || (await User.findOne({ role: 'admin' }));
+  if (!owner) {
+    console.error('No restaurant_owner or admin user found. Run `node src/config/seed-accounts.js` first.');
     process.exit(1);
   }
 
@@ -247,7 +235,7 @@ async function run() {
       skipped++;
       continue;
     }
-    await Restaurant.create({ ...data, addedBy: admin._id });
+    await Restaurant.create({ ...data, addedBy: owner._id });
     created++;
     process.stdout.write(`  + ${data.name}\n`);
   }

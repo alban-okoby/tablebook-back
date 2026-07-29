@@ -84,6 +84,8 @@ node src/server.js
 
 The API is available at `http://localhost:5000/api`
 
+Interactive Swagger docs are served at the project root (`http://localhost:5000/` — same URL on Render), listing every route with request/response schemas and a "Try it out" console. The spec lives at `src/public/openapi.json`.
+
 ---
 
 ## Database Schemas

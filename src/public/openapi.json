@@ -1,0 +1,812 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "TableBook API",
+    "author": "Alban Okoby",
+    "description": "REST API for a restaurant table reservation platform. Users browse restaurants and make reservations; restaurant owners manage their listings and bookings; admins manage users and approve restaurants.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "/", "description": "Current host" }
+  ],
+  "tags": [
+    { "name": "Auth", "description": "Registration, login, and account management" },
+    { "name": "Restaurants", "description": "Restaurant listings and reviews" },
+    { "name": "Bookings", "description": "Table reservations" },
+    { "name": "Users", "description": "User administration" },
+    { "name": "Health", "description": "Service status" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string" },
+          "details": { "type": "array", "items": { "type": "object" } }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "username": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "phone": { "type": "string", "nullable": true },
+          "avatar": { "type": "string", "nullable": true },
+          "bio": { "type": "string" },
+          "role": { "type": "string", "enum": ["user", "restaurant_owner", "admin"] },
+          "isVerified": { "type": "boolean" },
+          "isActive": { "type": "boolean" },
+          "lastLogin": { "type": "string", "format": "date-time", "nullable": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "AuthResponse": {
+        "type": "object",
+        "properties": {
+          "token": { "type": "string" },
+          "user": { "$ref": "#/components/schemas/User" }
+        }
+      },
+      "Table": {
+        "type": "object",
+        "properties": {
+          "label": { "type": "string" },
+          "capacity": { "type": "integer", "minimum": 1, "maximum": 20 },
+          "count": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "OpeningHour": {
+        "type": "object",
+        "properties": {
+          "day": { "type": "string", "enum": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] },
+          "open": { "type": "string", "example": "12:00" },
+          "close": { "type": "string", "example": "23:00" },
+          "isClosed": { "type": "boolean" }
+        }
+      },
+      "Review": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "user": { "type": "string", "description": "User ID (populated with username/avatar on read)" },
+          "rating": { "type": "integer", "minimum": 1, "maximum": 5 },
+          "title": { "type": "string" },
+          "body": { "type": "string" },
+          "likes": { "type": "array", "items": { "type": "string" } },
+          "isEdited": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Address": {
+        "type": "object",
+        "required": ["city"],
+        "properties": {
+          "street": { "type": "string" },
+          "city": { "type": "string" },
+          "state": { "type": "string" },
+          "country": { "type": "string", "default": "US" },
+          "zipCode": { "type": "string" }
+        }
+      },
+      "Restaurant": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "cuisine": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["Italian", "French", "Japanese", "Chinese", "Indian", "Mexican", "American", "Mediterranean", "Thai", "Greek", "Spanish", "Lebanese", "Korean", "Vietnamese", "Turkish", "Moroccan", "Brazilian", "Seafood", "Vegetarian", "Vegan", "Steakhouse", "Fusion", "Other"]
+            }
+          },
+          "address": { "$ref": "#/components/schemas/Address" },
+          "phone": { "type": "string" },
+          "email": { "type": "string" },
+          "website": { "type": "string" },
+          "images": { "type": "array", "items": { "type": "string" } },
+          "coverImage": { "type": "string", "nullable": true },
+          "priceRange": { "type": "string", "enum": ["$", "$$", "$$$", "$$$$"] },
+          "tables": { "type": "array", "items": { "$ref": "#/components/schemas/Table" } },
+          "openingHours": { "type": "array", "items": { "$ref": "#/components/schemas/OpeningHour" } },
+          "ratings": {
+            "type": "object",
+            "properties": {
+              "average": { "type": "number" },
+              "count": { "type": "integer" }
+            }
+          },
+          "reviews": { "type": "array", "items": { "$ref": "#/components/schemas/Review" } },
+          "addedBy": { "type": "string", "description": "User ID of the owner/admin who added it" },
+          "isFeatured": { "type": "boolean" },
+          "isApproved": { "type": "boolean" },
+          "viewCount": { "type": "integer" },
+          "reviewCount": { "type": "integer", "readOnly": true },
+          "totalCapacity": { "type": "integer", "readOnly": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Booking": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "restaurant": { "type": "string", "description": "Restaurant ID (populated on read)" },
+          "user": { "type": "string", "description": "User ID (populated on read)" },
+          "date": { "type": "string", "format": "date-time" },
+          "time": { "type": "string", "example": "19:30" },
+          "partySize": { "type": "integer", "minimum": 1, "maximum": 50 },
+          "tableLabel": { "type": "string", "nullable": true },
+          "status": { "type": "string", "enum": ["pending", "confirmed", "cancelled", "completed", "no-show"] },
+          "specialRequests": { "type": "string" },
+          "confirmationCode": { "type": "string" },
+          "cancelledAt": { "type": "string", "format": "date-time", "nullable": true },
+          "cancelledBy": { "type": "string", "nullable": true },
+          "cancelReason": { "type": "string" },
+          "isPast": { "type": "boolean", "readOnly": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "page": { "type": "integer" },
+          "limit": { "type": "integer" },
+          "total": { "type": "integer" },
+          "pages": { "type": "integer" }
+        }
+      }
+    },
+    "responses": {
+      "ValidationError": {
+        "description": "Validation failed",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Unauthorized": {
+        "description": "Missing or invalid authentication token",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Forbidden": {
+        "description": "Authenticated but not allowed to perform this action",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "NotFound": {
+        "description": "Resource not found",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      }
+    }
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Health check",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Service is up",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "ok" },
+                    "environment": { "type": "string" },
+                    "timestamp": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Create a new account",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["username", "email", "password"],
+                "properties": {
+                  "username": { "type": "string", "minLength": 3, "maxLength": 30, "example": "jane_doe" },
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string", "minLength": 8, "description": "Must include uppercase, lowercase, and a number", "example": "Password1" },
+                  "bio": { "type": "string" },
+                  "phone": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Account created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "409": { "description": "Email or username already taken", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Log in",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "format": "email", "example": "admin@tablebook.com" },
+                  "password": { "type": "string", "example": "Admin@1234" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Logged in", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "description": "Incorrect email or password", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "403": { "description": "Account deactivated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Get the current user's profile",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Current user", "content": { "application/json": { "schema": { "type": "object", "properties": { "user": { "$ref": "#/components/schemas/User" } } } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "patch": {
+        "tags": ["Auth"],
+        "summary": "Update the current user's profile",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": { "type": "string", "minLength": 3, "maxLength": 30 },
+                  "bio": { "type": "string", "maxLength": 500 },
+                  "phone": { "type": "string" },
+                  "avatar": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated user", "content": { "application/json": { "schema": { "type": "object", "properties": { "user": { "$ref": "#/components/schemas/User" } } } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "description": "Username already taken", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      },
+      "delete": {
+        "tags": ["Auth"],
+        "summary": "Deactivate the current user's account",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Account deactivated", "content": { "application/json": { "schema": { "type": "object", "properties": { "message": { "type": "string" } } } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/auth/change-password": {
+      "patch": {
+        "tags": ["Auth"],
+        "summary": "Change the current user's password",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["currentPassword", "newPassword"],
+                "properties": {
+                  "currentPassword": { "type": "string" },
+                  "newPassword": { "type": "string", "minLength": 8, "description": "Must include uppercase, lowercase, and a number" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Password changed", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "description": "Current password incorrect or not authenticated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/restaurants": {
+      "get": {
+        "tags": ["Restaurants"],
+        "summary": "Search/list restaurants",
+        "security": [],
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" }, "description": "Full-text search query" },
+          { "name": "cuisine", "in": "query", "schema": { "type": "string" }, "description": "Comma-separated cuisine list" },
+          { "name": "city", "in": "query", "schema": { "type": "string" } },
+          { "name": "priceRange", "in": "query", "schema": { "type": "string", "enum": ["$", "$$", "$$$", "$$$$"] } },
+          { "name": "minRating", "in": "query", "schema": { "type": "number", "minimum": 0, "maximum": 5 } },
+          { "name": "sortBy", "in": "query", "schema": { "type": "string", "enum": ["relevance", "newest", "rating", "popular", "name"], "default": "newest" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 12 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Restaurant list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "restaurants": { "type": "array", "items": { "$ref": "#/components/schemas/Restaurant" } },
+                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Restaurants"],
+        "summary": "Create a restaurant",
+        "description": "Requires role admin or restaurant_owner",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "cuisine", "address"],
+                "properties": {
+                  "name": { "type": "string", "maxLength": 200 },
+                  "description": { "type": "string", "maxLength": 3000 },
+                  "cuisine": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+                  "address": { "$ref": "#/components/schemas/Address" },
+                  "phone": { "type": "string" },
+                  "email": { "type": "string", "format": "email" },
+                  "priceRange": { "type": "string", "enum": ["$", "$$", "$$$", "$$$$"] },
+                  "tables": { "type": "array", "items": { "$ref": "#/components/schemas/Table" } },
+                  "openingHours": { "type": "array", "items": { "$ref": "#/components/schemas/OpeningHour" } }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Restaurant created", "content": { "application/json": { "schema": { "type": "object", "properties": { "restaurant": { "$ref": "#/components/schemas/Restaurant" } } } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/restaurants/featured": {
+      "get": {
+        "tags": ["Restaurants"],
+        "summary": "List featured, approved restaurants (top 8 by rating)",
+        "security": [],
+        "responses": {
+          "200": { "description": "Featured restaurants", "content": { "application/json": { "schema": { "type": "object", "properties": { "restaurants": { "type": "array", "items": { "$ref": "#/components/schemas/Restaurant" } } } } } } }
+        }
+      }
+    },
+    "/api/restaurants/mine": {
+      "get": {
+        "tags": ["Restaurants"],
+        "summary": "List the current owner's restaurants",
+        "description": "Requires role restaurant_owner or admin",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Owner's restaurants", "content": { "application/json": { "schema": { "type": "object", "properties": { "restaurants": { "type": "array", "items": { "$ref": "#/components/schemas/Restaurant" } } } } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/restaurants/{id}": {
+      "get": {
+        "tags": ["Restaurants"],
+        "summary": "Get a restaurant by ID",
+        "security": [],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Restaurant", "content": { "application/json": { "schema": { "type": "object", "properties": { "restaurant": { "$ref": "#/components/schemas/Restaurant" } } } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "put": {
+        "tags": ["Restaurants"],
+        "summary": "Update a restaurant",
+        "description": "Owner of the restaurant or an admin",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Any subset of restaurant fields. Admins may also set isApproved/isFeatured; owners may set isApproved to show/hide their listing.",
+                "properties": {
+                  "name": { "type": "string" },
+                  "description": { "type": "string" },
+                  "cuisine": { "type": "array", "items": { "type": "string" } },
+                  "address": { "$ref": "#/components/schemas/Address" },
+                  "phone": { "type": "string" },
+                  "email": { "type": "string" },
+                  "website": { "type": "string" },
+                  "images": { "type": "array", "items": { "type": "string" } },
+                  "coverImage": { "type": "string" },
+                  "priceRange": { "type": "string", "enum": ["$", "$$", "$$$", "$$$$"] },
+                  "tables": { "type": "array", "items": { "$ref": "#/components/schemas/Table" } },
+                  "openingHours": { "type": "array", "items": { "$ref": "#/components/schemas/OpeningHour" } },
+                  "isApproved": { "type": "boolean" },
+                  "isFeatured": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated restaurant", "content": { "application/json": { "schema": { "type": "object", "properties": { "restaurant": { "$ref": "#/components/schemas/Restaurant" } } } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["Restaurants"],
+        "summary": "Delete a restaurant",
+        "description": "Admin only",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Restaurant deleted", "content": { "application/json": { "schema": { "type": "object", "properties": { "message": { "type": "string" } } } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/restaurants/{id}/reviews": {
+      "post": {
+        "tags": ["Restaurants"],
+        "summary": "Add a review to a restaurant",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["rating", "body"],
+                "properties": {
+                  "rating": { "type": "integer", "minimum": 1, "maximum": 5 },
+                  "title": { "type": "string", "maxLength": 100 },
+                  "body": { "type": "string", "minLength": 10, "maxLength": 2000 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Review added",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "reviews": { "type": "array", "items": { "$ref": "#/components/schemas/Review" } },
+                    "ratings": { "type": "object", "properties": { "average": { "type": "number" }, "count": { "type": "integer" } } }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "description": "Already reviewed this restaurant", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/restaurants/{id}/reviews/{reviewId}": {
+      "delete": {
+        "tags": ["Restaurants"],
+        "summary": "Delete a review",
+        "description": "Author of the review or an admin",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "reviewId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Review deleted", "content": { "application/json": { "schema": { "type": "object", "properties": { "message": { "type": "string" } } } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/bookings": {
+      "get": {
+        "tags": ["Bookings"],
+        "summary": "List the current user's bookings",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["pending", "confirmed", "cancelled", "completed", "no-show"] } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 10 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bookings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "bookings": { "type": "array", "items": { "$ref": "#/components/schemas/Booking" } },
+                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["Bookings"],
+        "summary": "Create a reservation",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["restaurant", "date", "time", "partySize"],
+                "properties": {
+                  "restaurant": { "type": "string", "description": "Restaurant ID" },
+                  "date": { "type": "string", "format": "date", "example": "2026-08-15" },
+                  "time": { "type": "string", "example": "19:30" },
+                  "partySize": { "type": "integer", "minimum": 1, "maximum": 50 },
+                  "specialRequests": { "type": "string", "maxLength": 500 },
+                  "tableLabel": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Booking created", "content": { "application/json": { "schema": { "type": "object", "properties": { "booking": { "$ref": "#/components/schemas/Booking" } } } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/bookings/{id}": {
+      "get": {
+        "tags": ["Bookings"],
+        "summary": "Get a booking by ID",
+        "description": "Owner of the booking, an admin, or a restaurant_owner",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Booking", "content": { "application/json": { "schema": { "type": "object", "properties": { "booking": { "$ref": "#/components/schemas/Booking" } } } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/bookings/{id}/confirm": {
+      "patch": {
+        "tags": ["Bookings"],
+        "summary": "Confirm a pending booking",
+        "description": "Requires role admin or restaurant_owner",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Booking confirmed", "content": { "application/json": { "schema": { "type": "object", "properties": { "booking": { "$ref": "#/components/schemas/Booking" } } } } } },
+          "400": { "description": "Booking is not pending", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/bookings/{id}/cancel": {
+      "patch": {
+        "tags": ["Bookings"],
+        "summary": "Cancel a booking",
+        "description": "Owner of the booking, an admin, or a restaurant_owner",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "type": "object", "properties": { "reason": { "type": "string", "maxLength": 300 } } }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Booking cancelled", "content": { "application/json": { "schema": { "type": "object", "properties": { "booking": { "$ref": "#/components/schemas/Booking" } } } } } },
+          "400": { "description": "Booking already cancelled/completed", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/bookings/{id}/complete": {
+      "patch": {
+        "tags": ["Bookings"],
+        "summary": "Mark a confirmed booking as completed",
+        "description": "Requires role admin or restaurant_owner",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Booking completed", "content": { "application/json": { "schema": { "type": "object", "properties": { "booking": { "$ref": "#/components/schemas/Booking" } } } } } },
+          "400": { "description": "Booking is not confirmed", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/bookings/restaurant/{restaurantId}": {
+      "get": {
+        "tags": ["Bookings"],
+        "summary": "List all bookings for a restaurant",
+        "description": "Requires role admin or restaurant_owner (owner limited to their own restaurant)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "restaurantId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "date", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["pending", "confirmed", "cancelled", "completed", "no-show"] } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bookings for the restaurant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "bookings": { "type": "array", "items": { "$ref": "#/components/schemas/Booking" } },
+                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "List users",
+        "description": "Admin only",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" }, "description": "Search by username or email" },
+          { "name": "role", "in": "query", "schema": { "type": "string", "enum": ["user", "restaurant_owner", "admin"] } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "User list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "users": { "type": "array", "items": { "$ref": "#/components/schemas/User" } },
+                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/users/{id}": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get a user by ID",
+        "security": [],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "User", "content": { "application/json": { "schema": { "type": "object", "properties": { "user": { "$ref": "#/components/schemas/User" } } } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/users/{id}/bookings": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "List a user's bookings",
+        "description": "Self or admin only",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Bookings", "content": { "application/json": { "schema": { "type": "object", "properties": { "bookings": { "type": "array", "items": { "$ref": "#/components/schemas/Booking" } } } } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/users/{id}/role": {
+      "patch": {
+        "tags": ["Users"],
+        "summary": "Change a user's role",
+        "description": "Admin only",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["role"],
+                "properties": { "role": { "type": "string", "enum": ["user", "restaurant_owner", "admin"] } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated user", "content": { "application/json": { "schema": { "type": "object", "properties": { "user": { "$ref": "#/components/schemas/User" } } } } } },
+          "400": { "description": "Invalid role", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    }
+  }
+}
