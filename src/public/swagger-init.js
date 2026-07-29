@@ -6,5 +6,6 @@ window.onload = () => {
     layout: 'StandaloneLayout',
     deepLinking: true,
     validatorUrl: null,
+    defaultModelsExpandDepth: -1,
   });
 };
